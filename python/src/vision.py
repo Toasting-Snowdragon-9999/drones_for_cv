@@ -141,8 +141,8 @@ class Vision:
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
         # Everything except green hues (90–130) and low saturation
-        lower_green = np.array([35, 90, 30])   # H, S, V lower bound
-        upper_green = np.array([55, 255, 255]) # H, S, V upper bound
+        lower_green = np.array([35, 90, 30])   
+        upper_green = np.array([55, 255, 255]) 
 
         # Mask the green
         green_mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -171,56 +171,8 @@ class Vision:
         # Calculate moments
         return gauss_filter
 
-    def filter_large_contours(binary_mask: np.ndarray,
-                                    min_area: int = 500,
-                                    connectivity: int = 4,
-                                    erode_kernel: int = 3,
-                                    erode_iter: int = 1) -> list:
-        """
-        Return contours from a binary mask using stricter grouping:
-        - optional erosion to break thin bridges
-        - connected components with chosen connectivity (4 or 8)
-        - filter by min_area
-        - return contours sorted by area (desc)
-        """
-        if binary_mask is None:
-            return []
 
-        # # Ensure single-channel uint8 binary (0/255)
-        # if binary_mask.dtype != np.uint8:
-        #     binary_mask = (binary_mask > 0).astype(np.uint8) * 255
-        # else:
-        #     _, binary_mask = cv2.threshold(binary_mask, 127, 255, cv2.THRESH_BINARY)
-
-        # Optional erosion to enforce stricter connectivity
-        if erode_kernel and erode_iter > 0:
-            k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (erode_kernel, erode_kernel))
-            work = cv2.erode(binary_mask, k, iterations=erode_iter)
-        else:
-            work = binary_mask
-
-        # Connected components (controls connectivity strictness)
-        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(work, connectivity=connectivity)
-
-        contours_out = []
-        for lbl in range(1, num_labels):  # 0 is background
-            area = int(stats[lbl, cv2.CC_STAT_AREA])
-            if area < min_area:
-                continue
-
-            # Recover contour for this component
-            comp_mask = (labels == lbl).astype(np.uint8) * 255
-            cnts, _ = cv2.findContours(comp_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if cnts:
-                # there should be one contour; take the largest just in case
-                c = max(cnts, key=cv2.contourArea)
-                contours_out.append(c)
-
-        # Sort by area (largest first)
-        contours_out.sort(key=cv2.contourArea, reverse=True)
-        return contours_out
-
-    def find_edge(self, binary_mask: np.ndarray) -> np.ndarray:
+    def find_contours(self, binary_mask: np.ndarray) -> np.ndarray:
         if binary_mask is None:
             print("Error: No binary mask provided.")
             return []
@@ -230,8 +182,6 @@ class Vision:
             binary_mask = cv2.cvtColor(binary_mask, cv2.COLOR_BGR2GRAY)
         if binary_mask.dtype != np.uint8:
             binary_mask = (binary_mask > 0).astype(np.uint8) * 255
-        # filter contours
-        contours = self.filter_large_contours(binary_mask)
 
         # Detect edges
         edges = cv2.Canny(binary_mask, 100, 200)
@@ -239,11 +189,31 @@ class Vision:
             print("No edges found.")
             return edges
 
-        # Draw edges on a copy of the original image
-        vis = self.img.copy()
-        # vis[edges != 0] = (0, 0, 255)  # red edges
-        # show the contours
-        cv2.drawContours(vis, contours, -1, (0, 255, 0), 2)
+        cnts_info = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = cnts_info[0] if len(cnts_info) == 2 else cnts_info[1]
+
+        # Nothing found?
+        if not contours:
+            print("No contours found.")
+            self.show_image(self.img if self.img is not None else edges)
+            return edges
+
+        # OPTIONAL: ignore tiny specks
+        min_area = 200  # tweak or set to 0 to disable
+        contours = [c for c in contours if cv2.contourArea(c) >= min_area]
+
+        if not contours:
+            print("No contours above min_area.")
+            self.show_image(self.img if self.img is not None else edges)
+            return edges
+
+        # Keep only the largest N contours
+        top_k = -1  # change to 3, 5, ... if you want more
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:top_k]
+
+        # Draw on a copy of the original image
+        vis = self.img.copy() if self.img is not None else cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        cv2.drawContours(vis, contours, -1, (0, 0, 255), 5)
 
         self.show_image(vis)
         return edges
@@ -254,3 +224,30 @@ class Vision:
         hu_features = cv2.HuMoments(moments).flatten()
         print("Hu Moments:", hu_features)
         return hu_features
+
+    def print_hsv_values(self, pixel_start_location, pixel_end_location) -> None:
+        hsv_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+
+        h_values, s_values, v_values = [], [], []
+
+        for y in range(pixel_start_location[1], pixel_end_location[1] + 1):
+            for x in range(pixel_start_location[0], pixel_end_location[0] + 1):
+                h, s, v = hsv_img[y, x]
+                h_values.append(h)
+                s_values.append(s)
+                v_values.append(v)
+                print(f"Pixel at ({x}, {y}) - H: {h}, S: {s}, V: {v}")
+
+        # Compute statistics
+        def stats(values):
+            return min(values), max(values), sum(values) / len(values)
+
+        h_min, h_max, h_avg = stats(h_values)
+        s_min, s_max, s_avg = stats(s_values)
+        v_min, v_max, v_avg = stats(v_values)
+
+        print("\n=== HSV Statistics in Range ===")
+        print(f"Hue       -> Min: {h_min}, Max: {h_max}, Avg: {h_avg:.2f}")
+        print(f"Saturation-> Min: {s_min}, Max: {s_max}, Avg: {s_avg:.2f}")
+        print(f"Value     -> Min: {v_min}, Max: {v_max}, Avg: {v_avg:.2f}")
+        print("\n=== HSV Statistics ===")
