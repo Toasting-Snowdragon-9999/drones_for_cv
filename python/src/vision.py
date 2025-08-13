@@ -1,13 +1,14 @@
 import cv2
 from matplotlib.pyplot import draw
 import numpy as np
-import os 
+import os
 
 path = "python/img/"
 
+
 class Vision:
 
-    def __init__(self, original_image = "img/original_field.jpg"):
+    def __init__(self, original_image="img/original_field.jpg"):
         self.original_image = original_image
         self.img = None
 
@@ -40,10 +41,10 @@ class Vision:
         cv2.imshow("Image", img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    
+
     def make_empty_image(self) -> None:
         self.img = np.zeros((100, 200, 3), np.uint8)
-        cv2.line(self.img, (20, 30), (40, 120),(0, 0, 255), 3)
+        cv2.line(self.img, (20, 30), (40, 120), (0, 0, 255), 3)
         cv2.imwrite(os.path.join(path, "test.png"), self.img)
 
     def draw_penis(self) -> None:
@@ -62,7 +63,7 @@ class Vision:
 
     def save_upper_half(self) -> None:
         height, width = self.img.shape[:2]
-        upper_half = self.img[:height // 2, :]
+        upper_half = self.img[: height // 2, :]
         cv2.imwrite(os.path.join(path, "[1.6.4]upper_half.png"), upper_half)
 
     def save_hsv_image(self) -> None:
@@ -92,7 +93,7 @@ class Vision:
         self.img = cv2.imread(os.path.join(path, "flower.jpg"))
         if self.img is None:
             print("Error: Flower image not found.")
-    
+
     def find_yellow_hsv(self):
         if self.img is None:
             print("Error: No image provided.")
@@ -125,7 +126,7 @@ class Vision:
         if self.img is None:
             print("Error: No image provided.")
             return None
-        height, width, channels = self.img.shape    
+        height, width, channels = self.img.shape
         green_pixels = np.zeros((height, width, 3), dtype=np.uint8)
         green_pixels[:, :, 1] = self.img[:, :, 1]
         cv2.imshow("green", green_pixels)
@@ -137,12 +138,12 @@ class Vision:
         if self.img is None:
             print("Error: No image provided.")
             return None
-        
+
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
         # Everything except green hues (90–130) and low saturation
-        lower_green = np.array([35, 90, 30])   
-        upper_green = np.array([55, 255, 255]) 
+        lower_green = np.array([35, 90, 30])
+        upper_green = np.array([55, 255, 255])
 
         # Mask the green
         green_mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -162,7 +163,7 @@ class Vision:
         # upper_bound = np.array([179, 255, 255])
         # mask = cv2.inRange(hsv_img, lower_bound, upper_bound)
         animal_shapes = cv2.bitwise_and(hsv, hsv, mask=non_green_mask)
-        
+
         # h, s, v = cv2.split(hsv_img)
         cv2.imwrite(os.path.join(path, "[1.6.8]Filteren_animals.png"), filtered)
         # _, binary_img = cv2.threshold(s, 0, 200, cv2.THRESH_BINARY)
@@ -170,7 +171,6 @@ class Vision:
         self.show_image(gauss_filter)
         # Calculate moments
         return gauss_filter
-
 
     def find_contours(self, binary_mask: np.ndarray) -> np.ndarray:
         if binary_mask is None:
@@ -212,12 +212,15 @@ class Vision:
         contours = sorted(contours, key=cv2.contourArea, reverse=True)[:top_k]
 
         # Draw on a copy of the original image
-        vis = self.img.copy() if self.img is not None else cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        vis = (
+            self.img.copy()
+            if self.img is not None
+            else cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        )
         cv2.drawContours(vis, contours, -1, (0, 0, 255), 5)
 
         self.show_image(vis)
         return edges
-
 
     def hu_moments(self, contour: list):
         moments = cv2.moments(contour)

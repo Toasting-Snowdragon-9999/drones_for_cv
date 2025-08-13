@@ -4,6 +4,7 @@ import numpy as np
 from src.plotter import Plotter
 from src.vision import Vision
 
+
 def show_hsv_picker(img_bgr):
     # Convert to HSV once
     if img_bgr is None:
@@ -12,7 +13,6 @@ def show_hsv_picker(img_bgr):
     if height > 1080 or width == 1920:
         img_bgr = cv2.resize(img_bgr, (width // 4, height // 4))
     hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
-    
 
     def mouse_callback(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:  # Left click
@@ -27,6 +27,7 @@ def show_hsv_picker(img_bgr):
         if cv2.waitKey(1) & 0xFF == 27:  # ESC to exit
             break
     cv2.destroyAllWindows()
+
 
 def main():
 
@@ -44,9 +45,9 @@ def main():
     # plotter.plot_histogram(vision.get_img())
     # plotter.plot_histogram_g(vision.get_img())
     # vision.get_each_pixel_green()
-    vision.find_edge(vision.get_binary_mask())
+    vision.find_contours(vision.get_binary_mask())
     # show_hsv_picker(vision.get_img())
+
 
 if __name__ == "__main__":
     main()
-    
