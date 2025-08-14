@@ -29,34 +29,54 @@ def solidity(cnt, area):
     return float(area) / float(ha)
 
 
-def passes_shape_bands(hu1, hu2):
+def passes_shape_bands(hu1, hu2, area=None, circ=None, sol=None):
     """
-    Bands derived from your 4 examples, padded for variance.
-    Tweak if you get false positives/negatives.
+    Improved acceptance logic:
+    - Primary: expanded Hu1/Hu2 band from all observed animals
+    - Fallback: accept if large area, high solidity, and low circularity (elongated animals)
     """
-    # Cluster A (Contour 1-like)
-    A_hu1 = (0.25, 0.30)
-    A_hu2 = (0.03, 0.06)
-    in_A = (A_hu1[0] <= hu1 <= A_hu1[1]) and (A_hu2[0] <= hu2 <= A_hu2[1])
+    eps = 1e-6
+    # Expanded Hu ranges
+    hu1_min, hu1_max = 0.17, 0.44
+    hu2_min, hu2_max = 0.005, 0.14
 
-    # Cluster B (Contours 2–4-like)
-    B_hu1 = (0.31, 0.36)
-    B_hu2 = (0.075, 0.095)
-    in_B = (B_hu1[0] <= hu1 <= B_hu1[1]) and (B_hu2[0] <= hu2 <= B_hu2[1])
+    in_hu_band = (hu1_min <= hu1 <= hu1_max) and (hu2_min <= hu2 <= hu2_max)
+    if in_hu_band:
+        return True, "Animal"
 
-    return in_A or in_B, ("Animal" if in_A else ("Animal" if in_B else "-"))
+    # Fallback rule
+    if area is None:
+        area = 0.0
+    if circ is None:
+        circ = 1.0
+    if sol is None:
+        sol = 0.0
+
+    area_thresh = (
+        100  # Minimum allowed contour area in pixels — filters out tiny specks/noise
+    )
+    sol_thresh = 0.80  # Minimum solidity (area / convex hull area) — ensures the shape is mostly filled, not jagged
+    circ_thresh = 0.22  # Maximum circularity (4π × area / perimeter²) — rejects very round shapes like stones or blobs
+
+    fallback = (area >= area_thresh) and (sol >= sol_thresh) and (circ <= circ_thresh)
+    if fallback:
+        return True, "Animal"
+
+    return False, "-"
+
+
+#########################################################################################
 
 
 def main():
     # Load image
-    img = cv2.imread("../images/capture_6/img_1.jpg")
-    img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
+    img = cv2.imread("../images/capture_savannah/img_8.jpg")
 
     # Convert to HSV
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     # Define HSV range for green
-    lower_green = np.array([35, 40, 40])
+    lower_green = np.array([40, 35, 10])  # Hue ~35–85 for green
     upper_green = np.array([85, 255, 255])
 
     # Create mask for green and invert
@@ -78,12 +98,12 @@ def main():
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Filter by area
-    min_area = 1000
-    max_area = 100000
+    min_area = 300
+    max_area = 500000
     contours = [c for c in contours if min_area <= cv2.contourArea(c) <= max_area]
 
     # Sort and keep top N by area
-    top_n = 4
+    top_n = 10
     contours = sorted(contours, key=cv2.contourArea, reverse=True)[:top_n]
 
     # Additional priors
@@ -108,7 +128,8 @@ def main():
         sol = solidity(cnt, area)
 
         # Core relation: (Hu1, Hu2) cluster bands
-        in_band, band = passes_shape_bands(hu[0], hu[1])
+        in_band, band = passes_shape_bands(hu[0], hu[1], area=area, circ=circ, sol=sol)
+        keep = in_band and (circ_min <= circ <= circ_max) and (sol >= sol_min)
 
         # Final keep rule
         keep = in_band and (circ_min <= circ <= circ_max) and (sol >= sol_min)
@@ -140,6 +161,12 @@ def main():
                 2,
                 cv2.LINE_AA,
             )
+
+    # Resize all images
+    img = cv2.resize(img, (1500, 1000))
+    contour_img = cv2.resize(contour_img, (1500, 1000))
+    rect_img = cv2.resize(rect_img, (1500, 1000))
+    result = cv2.resize(result, (1500, 1000))
 
     # Show results
     cv2.imshow("Original", img)
