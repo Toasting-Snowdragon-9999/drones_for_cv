@@ -3,7 +3,7 @@ from matplotlib.pyplot import draw
 import numpy as np
 import os
 
-path = "python/img/"
+path = "python/images/"
 
 
 class Vision:
@@ -16,7 +16,7 @@ class Vision:
         return self.img
 
     def load_image(self) -> None:
-        self.img = cv2.imread(os.path.join(path, "original_field.jpg"))
+        self.img = cv2.imread(os.path.join(path, "capture_5/img_1.jpg"))
         if self.img is None:
             print("Error: Image not found.")
 
@@ -142,8 +142,8 @@ class Vision:
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
         # Everything except green hues (90–130) and low saturation
-        lower_green = np.array([35, 90, 30])
-        upper_green = np.array([55, 255, 255])
+        lower_green = np.array([35, 40, 40])  # Hue ~35–85 for green
+        upper_green = np.array([85, 255, 255])
 
         # Mask the green
         green_mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -208,7 +208,7 @@ class Vision:
             return edges
 
         # Keep only the largest N contours
-        top_k = -1  # change to 3, 5, ... if you want more
+        top_k = 4  # change to 3, 5, ... if you want more
         contours = sorted(contours, key=cv2.contourArea, reverse=True)[:top_k]
 
         # Draw on a copy of the original image
