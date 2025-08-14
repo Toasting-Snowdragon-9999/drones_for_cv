@@ -44,13 +44,13 @@ def passes_shape_bands(hu1, hu2):
     B_hu2 = (0.075, 0.095)
     in_B = (B_hu1[0] <= hu1 <= B_hu1[1]) and (B_hu2[0] <= hu2 <= B_hu2[1])
 
-    return in_A or in_B, ("A" if in_A else ("B" if in_B else "-"))
+    return in_A or in_B, ("Animal" if in_A else ("Animal" if in_B else "-"))
 
 
 def main():
     # Load image
-    img = cv2.imread("../images/capture_5/img_8.jpg")
-    img = cv2.resize(img, (0, 0), fx=0.4, fy=0.4)
+    img = cv2.imread("../images/capture_6/img_1.jpg")
+    img = cv2.resize(img, (0, 0), fx=0.5, fy=0.5)
 
     # Convert to HSV
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -79,7 +79,7 @@ def main():
 
     # Filter by area
     min_area = 1000
-    max_area = 20000
+    max_area = 100000
     contours = [c for c in contours if min_area <= cv2.contourArea(c) <= max_area]
 
     # Sort and keep top N by area
