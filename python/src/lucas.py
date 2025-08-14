@@ -53,7 +53,7 @@ def passes_shape_bands(hu1, hu2, area=None, circ=None, sol=None):
         sol = 0.0
 
     area_thresh = (
-        100  # Minimum allowed contour area in pixels — filters out tiny specks/noise
+        1500  # Minimum allowed contour area in pixels — filters out tiny specks/noise
     )
     sol_thresh = 0.80  # Minimum solidity (area / convex hull area) — ensures the shape is mostly filled, not jagged
     circ_thresh = 0.22  # Maximum circularity (4π × area / perimeter²) — rejects very round shapes like stones or blobs
@@ -98,7 +98,7 @@ def main():
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Filter by area
-    min_area = 300
+    min_area = 1500
     max_area = 500000
     contours = [c for c in contours if min_area <= cv2.contourArea(c) <= max_area]
 
@@ -107,7 +107,7 @@ def main():
     contours = sorted(contours, key=cv2.contourArea, reverse=True)[:top_n]
 
     # Additional priors
-    circ_min, circ_max = 0.05, 0.60  # tune as needed
+    circ_min, circ_max = 0.2, 0.60  # tune as needed
     sol_min = 0.60  # tune as needed
     draw_color_keep = (0, 0, 255)
     draw_color_drop = (0, 255, 255)
